@@ -13,11 +13,10 @@ interface Message {
 }
 
 interface ChatInterfaceProps {
-  disabled: boolean;
   onQueryResponse: (response: QueryResponse) => void;
 }
 
-export function ChatInterface({ disabled, onQueryResponse }: ChatInterfaceProps) {
+export function ChatInterface({ onQueryResponse }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [currentFile, setCurrentFile] = useState('');
@@ -36,7 +35,7 @@ export function ChatInterface({ disabled, onQueryResponse }: ChatInterfaceProps)
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!input.trim() || loading || disabled) return;
+    if (!input.trim() || loading) return;
 
     const query = input.trim();
     setInput('');
@@ -179,14 +178,14 @@ export function ChatInterface({ disabled, onQueryResponse }: ChatInterfaceProps)
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={disabled ? 'Connect & store codebase first...' : 'Ask about your codebase...'}
-              disabled={disabled || loading}
+              placeholder="Ask about your codebase..."
+              disabled={loading}
               rows={1}
               className="min-h-[44px] max-h-32 resize-none bg-secondary/50 border-border/50"
             />
             <Button
               type="submit"
-              disabled={disabled || loading || !input.trim()}
+              disabled={loading || !input.trim()}
               className="h-[44px] w-[44px] p-0"
             >
               <Send className="h-4 w-4" />

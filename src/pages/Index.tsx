@@ -82,7 +82,6 @@ const Index = () => {
           {/* Center - Chat */}
           <div className="glass rounded-xl flex flex-col overflow-hidden">
             <ChatInterface
-              disabled={!isReady}
               onQueryResponse={handleQueryResponse}
             />
           </div>
