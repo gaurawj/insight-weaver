@@ -88,7 +88,7 @@ export function ResultsPanel({ neo4jData, storageData, queryResponse }: ResultsP
           expanded={expanded.reasoning}
           onToggle={() => toggleSection('reasoning')}
         >
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-64 overflow-y-auto">
             {/* Summary */}
             <div className="flex gap-2 flex-wrap">
               <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">

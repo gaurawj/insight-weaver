@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { api, QueryResponse } from '@/lib/api';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -103,7 +104,9 @@ export function ChatInterface({ onQueryResponse }: ChatInterfaceProps) {
                   : 'bg-secondary/80 text-foreground'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              <div className="text-sm prose prose-sm prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
+              </div>
               
               {/* Show contexts retrieved */}
               {msg.contexts && msg.contexts.length > 0 && (
