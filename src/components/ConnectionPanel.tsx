@@ -1,28 +1,32 @@
 import { useState } from 'react';
-import { Database, Plug, Upload, Check, Loader2 } from 'lucide-react';
+import { Database, Plug, FolderCode, Check, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { api } from '@/lib/api';
+import { api, Neo4jResponse, ParserResponse, StorageResponse } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 
 interface ConnectionPanelProps {
   isConnected: boolean;
-  onConnect: () => void;
-  onUpload: () => void;
-  hasUpload: boolean;
+  onConnect: (data: Neo4jResponse) => void;
+  onParse: (data: ParserResponse) => void;
+  onStore: (data: StorageResponse) => void;
 }
 
-export function ConnectionPanel({ isConnected, onConnect, onUpload, hasUpload }: ConnectionPanelProps) {
-  const [dbName, setDbName] = useState('');
+export function ConnectionPanel({ isConnected, onConnect, onParse, onStore }: ConnectionPanelProps) {
+  const [codebasePath, setCodebasePath] = useState('');
+  const [jsonPath, setJsonPath] = useState('');
   const [connecting, setConnecting] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [storing, setStoring] = useState(false);
+  const [parseComplete, setParseComplete] = useState(false);
+  const [storeComplete, setStoreComplete] = useState(false);
 
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      await api.connect(dbName || undefined);
-      onConnect();
-      toast({ title: 'Connected', description: 'Successfully connected to Neo4j' });
+      const response = await api.connectNeo4j(true);
+      onConnect(response);
+      toast({ title: 'Connected', description: response.message });
     } catch (error) {
       toast({ title: 'Error', description: String(error), variant: 'destructive' });
     } finally {
@@ -30,80 +34,145 @@ export function ConnectionPanel({ isConnected, onConnect, onUpload, hasUpload }:
     }
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setUploading(true);
+  const handleParse = async () => {
+    if (!codebasePath.trim()) {
+      toast({ title: 'Error', description: 'Please enter codebase path', variant: 'destructive' });
+      return;
+    }
+    setParsing(true);
     try {
-      await api.uploadPdf(file);
-      onUpload();
-      toast({ title: 'Uploaded', description: `${file.name} processed successfully` });
+      const response = await api.parseCodebase({ file_path: codebasePath, save_output: true });
+      if (response.status === 'success') {
+        setParseComplete(true);
+        if (response.output_path) {
+          setJsonPath(response.output_path);
+        }
+        onParse(response);
+        toast({ 
+          title: 'Parsed', 
+          description: `Analyzed ${response.files_analyzed} files` 
+        });
+      } else {
+        toast({ title: 'Error', description: response.error || 'Parsing failed', variant: 'destructive' });
+      }
     } catch (error) {
       toast({ title: 'Error', description: String(error), variant: 'destructive' });
     } finally {
-      setUploading(false);
+      setParsing(false);
+    }
+  };
+
+  const handleStore = async () => {
+    if (!jsonPath.trim()) {
+      toast({ title: 'Error', description: 'Please enter JSON file path', variant: 'destructive' });
+      return;
+    }
+    setStoring(true);
+    try {
+      const response = await api.storeToNeo4j({ json_file_path: jsonPath, verbose: false });
+      if (response.status === 'success') {
+        setStoreComplete(true);
+        onStore(response);
+        toast({ 
+          title: 'Stored', 
+          description: `${response.total_nodes} nodes, ${response.total_relationships} relationships` 
+        });
+      } else {
+        toast({ title: 'Error', description: response.error || 'Storage failed', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: String(error), variant: 'destructive' });
+    } finally {
+      setStoring(false);
     }
   };
 
   return (
     <div className="glass rounded-xl p-4 space-y-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Database className="h-4 w-4" />
-        <span>Database Connection</span>
-      </div>
-
-      <div className="flex gap-2">
-        <Input
-          placeholder="Database name (optional)"
-          value={dbName}
-          onChange={(e) => setDbName(e.target.value)}
-          disabled={isConnected}
-          className="bg-secondary/50 border-border/50"
-        />
+      {/* Neo4j Connection */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Database className="h-4 w-4" />
+          <span>Neo4j Connection</span>
+        </div>
         <Button
           onClick={handleConnect}
           disabled={connecting || isConnected}
-          className={isConnected ? 'bg-primary/20 text-primary' : ''}
+          className={`w-full ${isConnected ? 'bg-primary/20 text-primary' : ''}`}
         >
           {connecting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
           ) : isConnected ? (
-            <Check className="h-4 w-4" />
+            <Check className="h-4 w-4 mr-2" />
           ) : (
-            <Plug className="h-4 w-4" />
+            <Plug className="h-4 w-4 mr-2" />
           )}
+          {isConnected ? 'Connected' : 'Connect to Neo4j'}
         </Button>
       </div>
 
       {isConnected && (
-        <div className="pt-2 border-t border-border/50">
-          <label className="cursor-pointer">
-            <div className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed transition-all ${
-              hasUpload 
-                ? 'border-primary/50 bg-primary/10 text-primary' 
-                : 'border-border/50 hover:border-primary/30 hover:bg-secondary/30'
-            }`}>
-              {uploading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : hasUpload ? (
-                <Check className="h-5 w-5" />
-              ) : (
-                <Upload className="h-5 w-5" />
-              )}
-              <span className="text-sm font-medium">
-                {hasUpload ? 'PDF Uploaded' : 'Upload PDF'}
-              </span>
+        <>
+          {/* Parser */}
+          <div className="pt-2 border-t border-border/50 space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <FolderCode className="h-4 w-4" />
+              <span>Parse Codebase</span>
             </div>
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handleUpload}
-              className="hidden"
-              disabled={uploading || hasUpload}
+            <Input
+              placeholder="Codebase directory path"
+              value={codebasePath}
+              onChange={(e) => setCodebasePath(e.target.value)}
+              disabled={parseComplete}
+              className="bg-secondary/50 border-border/50 text-sm"
             />
-          </label>
-        </div>
+            <Button
+              onClick={handleParse}
+              disabled={parsing || parseComplete || !codebasePath.trim()}
+              variant="secondary"
+              className={`w-full ${parseComplete ? 'bg-primary/20 text-primary' : ''}`}
+            >
+              {parsing ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : parseComplete ? (
+                <Check className="h-4 w-4 mr-2" />
+              ) : (
+                <FolderCode className="h-4 w-4 mr-2" />
+              )}
+              {parseComplete ? 'Parsed' : 'Parse Codebase'}
+            </Button>
+          </div>
+
+          {/* Store */}
+          <div className="pt-2 border-t border-border/50 space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Upload className="h-4 w-4" />
+              <span>Store to Graph</span>
+            </div>
+            <Input
+              placeholder="JSON file path"
+              value={jsonPath}
+              onChange={(e) => setJsonPath(e.target.value)}
+              disabled={storeComplete}
+              className="bg-secondary/50 border-border/50 text-sm"
+            />
+            <Button
+              onClick={handleStore}
+              disabled={storing || storeComplete || !jsonPath.trim()}
+              variant="secondary"
+              className={`w-full ${storeComplete ? 'bg-primary/20 text-primary' : ''}`}
+            >
+              {storing ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : storeComplete ? (
+                <Check className="h-4 w-4 mr-2" />
+              ) : (
+                <Upload className="h-4 w-4 mr-2" />
+              )}
+              {storeComplete ? 'Stored' : 'Store to Neo4j'}
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );

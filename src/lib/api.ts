@@ -1,59 +1,148 @@
 const API_BASE = 'http://localhost:8000';
 
-export interface ChatRequest {
+// Request types
+export interface ParserRequest {
+  file_path: string;
+  save_output?: boolean;
+}
+
+export interface StorageRequest {
+  json_file_path: string;
+  verbose?: boolean;
+}
+
+export interface QueryRequest {
   query: string;
-  expand_depth?: number;
+  current_file?: string;
+  current_line?: number;
 }
 
-export interface EntityContextRequest {
-  entity_name: string;
+export interface Neo4jRequest {
+  test_connection?: boolean;
 }
 
-export interface PathRequest {
-  entity_names: string[];
-  max_hops?: number;
+// Response types
+export interface StatisticItem {
+  label: string;
+  count: number;
 }
 
-export interface ChatResponse {
-  answer: string;
-  provenance?: any[];
-  entities?: string[];
-  [key: string]: any;
+export interface RelationshipItem {
+  type: string;
+  count: number;
 }
 
-export interface GraphData {
-  nodes: number;
-  relationships: number;
-  data: {
-    nodes: any[];
-    relationships: any[];
-  };
+export interface EmbeddingStats {
+  total_embeddings_generated: number;
+  total_tokens_used: number;
+  api_calls_made: number;
+  estimated_cost_usd: number;
+}
+
+export interface ParserResponse {
+  status: string;
+  timestamp: string;
+  root_directory: string;
+  total_files: number;
+  files_analyzed: number;
+  files_skipped: number;
+  output_path?: string;
+  error?: string;
+}
+
+export interface StorageResponse {
+  status: string;
+  timestamp: string;
+  total_nodes: number;
+  total_relationships: number;
+  node_types: StatisticItem[];
+  relationship_types: RelationshipItem[];
+  embeddings: EmbeddingStats;
+  error?: string;
+}
+
+export interface RetrievalStep {
+  context_name: string;
+  context_type: string;
+  file_path: string;
+  line_range: string;
+  relevance_score: number;
+  retrieval_method: string;
+  explanation: string;
+  hop_distance?: number;
+  graph_path?: string;
+  semantic_score?: number;
+  keywords_matched?: string[];
+}
+
+export interface RetrievalSummary {
+  total_contexts: number;
+  by_method: Record<string, number>;
+  total_relationships: number;
+}
+
+export interface ReasoningData {
+  query: string;
+  timestamp: string;
+  summary: RetrievalSummary;
+  retrieval_steps: RetrievalStep[];
+}
+
+export interface CodeContext {
+  content: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  type: string;
+  name: string;
+  relevance_score: number;
+}
+
+export interface QueryResponse {
+  status: string;
+  timestamp: string;
+  query: string;
+  response: string;
+  contexts_retrieved: number;
+  contexts: CodeContext[];
+  reasoning?: ReasoningData;
+  error?: string;
+}
+
+export interface Neo4jResponse {
+  status: string;
+  timestamp: string;
+  message: string;
+  total_nodes?: number;
+  total_relationships?: number;
+  error?: string;
+}
+
+export interface HealthResponse {
+  status: string;
+  timestamp: string;
+  service: string;
 }
 
 export const api = {
-  async connect(dbName?: string) {
-    const res = await fetch(`${API_BASE}/connect`, {
+  async healthCheck(): Promise<HealthResponse> {
+    const res = await fetch(`${API_BASE}/`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async connectNeo4j(testConnection = true): Promise<Neo4jResponse> {
+    const res = await fetch(`${API_BASE}/neo4j`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ db_name: dbName }),
+      body: JSON.stringify({ test_connection: testConnection }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
-  async uploadPdf(file: File) {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await fetch(`${API_BASE}/upload`, {
-      method: 'POST',
-      body: formData,
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async chat(request: ChatRequest): Promise<ChatResponse> {
-    const res = await fetch(`${API_BASE}/chat`, {
+  async parseCodebase(request: ParserRequest): Promise<ParserResponse> {
+    const res = await fetch(`${API_BASE}/parser`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
@@ -62,34 +151,22 @@ export const api = {
     return res.json();
   },
 
-  async getEntityContext(entityName: string) {
-    const res = await fetch(`${API_BASE}/entity-context`, {
+  async storeToNeo4j(request: StorageRequest): Promise<StorageResponse> {
+    const res = await fetch(`${API_BASE}/store`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entity_name: entityName }),
+      body: JSON.stringify(request),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
-  async findPaths(entityNames: string[], maxHops = 3) {
-    const res = await fetch(`${API_BASE}/find-paths`, {
+  async query(request: QueryRequest): Promise<QueryResponse> {
+    const res = await fetch(`${API_BASE}/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entity_names: entityNames, max_hops: maxHops }),
+      body: JSON.stringify(request),
     });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async getGraphData(limit = 1000): Promise<GraphData> {
-    const res = await fetch(`${API_BASE}/graph-data?limit=${limit}`);
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async disconnect() {
-    const res = await fetch(`${API_BASE}/disconnect`, { method: 'DELETE' });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },

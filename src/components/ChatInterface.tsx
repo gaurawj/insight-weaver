@@ -1,25 +1,29 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Bot, User, Sparkles } from 'lucide-react';
+import { Send, Loader2, Bot, User, Sparkles, FileCode, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { api, ChatResponse } from '@/lib/api';
+import { Input } from '@/components/ui/input';
+import { api, QueryResponse } from '@/lib/api';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-  provenance?: any[];
-  entities?: string[];
+  contexts?: QueryResponse['contexts'];
+  reasoning?: QueryResponse['reasoning'];
 }
 
 interface ChatInterfaceProps {
   disabled: boolean;
-  onChatResponse: (response: ChatResponse, query: string) => void;
+  onQueryResponse: (response: QueryResponse) => void;
 }
 
-export function ChatInterface({ disabled, onChatResponse }: ChatInterfaceProps) {
+export function ChatInterface({ disabled, onQueryResponse }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [currentFile, setCurrentFile] = useState('');
+  const [currentLine, setCurrentLine] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showContext, setShowContext] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -40,14 +44,19 @@ export function ChatInterface({ disabled, onChatResponse }: ChatInterfaceProps) 
     setLoading(true);
 
     try {
-      const response = await api.chat({ query, expand_depth: 2 });
+      const response = await api.query({
+        query,
+        current_file: currentFile || undefined,
+        current_line: currentLine ? parseInt(currentLine) : undefined,
+      });
+      
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: response.answer || JSON.stringify(response),
-        provenance: response.provenance,
-        entities: response.entities,
+        content: response.response,
+        contexts: response.contexts,
+        reasoning: response.reasoning,
       }]);
-      onChatResponse(response, query);
+      onQueryResponse(response);
     } catch (error) {
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -71,9 +80,9 @@ export function ChatInterface({ disabled, onChatResponse }: ChatInterfaceProps) 
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
             <Sparkles className="h-12 w-12 mb-4 text-primary animate-pulse-glow" />
-            <h3 className="text-lg font-medium text-foreground mb-2">GraphRAG Chat</h3>
+            <h3 className="text-lg font-medium text-foreground mb-2">CodeBase RAG</h3>
             <p className="text-sm max-w-md">
-              Ask questions about your knowledge graph. Results will automatically show paths, entities, and graph data.
+              Ask questions about your codebase. Get answers with reasoning and code context.
             </p>
           </div>
         )}
@@ -96,15 +105,16 @@ export function ChatInterface({ disabled, onChatResponse }: ChatInterfaceProps) 
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              {msg.entities && msg.entities.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-border/30 flex flex-wrap gap-1">
-                  {msg.entities.slice(0, 5).map((entity, j) => (
-                    <span
-                      key={j}
-                      className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent"
-                    >
-                      {entity}
-                    </span>
+              
+              {/* Show contexts retrieved */}
+              {msg.contexts && msg.contexts.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-border/30 space-y-1">
+                  <span className="text-xs text-muted-foreground">Code contexts:</span>
+                  {msg.contexts.slice(0, 3).map((ctx, j) => (
+                    <div key={j} className="text-xs px-2 py-1 rounded bg-background/50">
+                      <span className="text-primary">{ctx.name}</span>
+                      <span className="text-muted-foreground ml-1">({ctx.type})</span>
+                    </div>
                   ))}
                 </div>
               )}
@@ -135,26 +145,55 @@ export function ChatInterface({ disabled, onChatResponse }: ChatInterfaceProps) 
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-border/50">
-        <div className="flex gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={disabled ? 'Connect & upload PDF first...' : 'Ask about your knowledge graph...'}
-            disabled={disabled || loading}
-            rows={1}
-            className="min-h-[44px] max-h-32 resize-none bg-secondary/50 border-border/50"
-          />
-          <Button
-            type="submit"
-            disabled={disabled || loading || !input.trim()}
-            className="h-[44px] w-[44px] p-0"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-      </form>
+      <div className="border-t border-border/50">
+        {/* Optional context inputs */}
+        <button
+          onClick={() => setShowContext(!showContext)}
+          className="w-full px-4 py-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-2"
+        >
+          <FileCode className="h-3 w-3" />
+          {showContext ? 'Hide context options' : 'Add file/line context (optional)'}
+        </button>
+        
+        {showContext && (
+          <div className="px-4 pb-2 flex gap-2">
+            <Input
+              placeholder="Current file path"
+              value={currentFile}
+              onChange={(e) => setCurrentFile(e.target.value)}
+              className="text-xs h-8 bg-secondary/50"
+            />
+            <Input
+              placeholder="Line #"
+              type="number"
+              value={currentLine}
+              onChange={(e) => setCurrentLine(e.target.value)}
+              className="text-xs h-8 w-20 bg-secondary/50"
+            />
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="p-4 pt-2">
+          <div className="flex gap-2">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={disabled ? 'Connect & store codebase first...' : 'Ask about your codebase...'}
+              disabled={disabled || loading}
+              rows={1}
+              className="min-h-[44px] max-h-32 resize-none bg-secondary/50 border-border/50"
+            />
+            <Button
+              type="submit"
+              disabled={disabled || loading || !input.trim()}
+              className="h-[44px] w-[44px] p-0"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

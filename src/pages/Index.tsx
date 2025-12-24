@@ -3,19 +3,21 @@ import { Braces, Zap } from 'lucide-react';
 import { ConnectionPanel } from '@/components/ConnectionPanel';
 import { ChatInterface } from '@/components/ChatInterface';
 import { ResultsPanel } from '@/components/ResultsPanel';
-import { ChatResponse } from '@/lib/api';
+import { Neo4jResponse, ParserResponse, StorageResponse, QueryResponse } from '@/lib/api';
 
 const Index = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [hasUpload, setHasUpload] = useState(false);
-  const [entities, setEntities] = useState<string[]>([]);
-  const [resultsTrigger, setResultsTrigger] = useState(0);
+  const [neo4jData, setNeo4jData] = useState<Neo4jResponse | null>(null);
+  const [parserData, setParserData] = useState<ParserResponse | null>(null);
+  const [storageData, setStorageData] = useState<StorageResponse | null>(null);
+  const [queryResponse, setQueryResponse] = useState<QueryResponse | null>(null);
+  const [queryCount, setQueryCount] = useState(0);
 
-  const handleChatResponse = (response: ChatResponse, query: string) => {
-    // Extract entities from response or query
-    const extractedEntities = response.entities || [];
-    setEntities(extractedEntities);
-    setResultsTrigger(prev => prev + 1);
+  const isConnected = neo4jData?.status === 'connected';
+  const isReady = isConnected && storageData?.status === 'success';
+
+  const handleQueryResponse = (response: QueryResponse) => {
+    setQueryResponse(response);
+    setQueryCount(prev => prev + 1);
   };
 
   return (
@@ -28,18 +30,18 @@ const Index = () => {
               <Braces className="h-5 w-5 text-background" />
             </div>
             <div>
-              <h1 className="font-semibold text-lg">GraphRAG</h1>
-              <p className="text-xs text-muted-foreground">Knowledge Graph Explorer</p>
+              <h1 className="font-semibold text-lg">CodeBase RAG</h1>
+              <p className="text-xs text-muted-foreground">Graph-Powered Code Explorer</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
-              isConnected && hasUpload 
+              isReady 
                 ? 'bg-primary/20 text-primary' 
                 : 'bg-secondary text-muted-foreground'
             }`}>
-              <Zap className={`h-3 w-3 ${isConnected && hasUpload ? 'animate-pulse-glow' : ''}`} />
-              {isConnected && hasUpload ? 'Ready' : 'Not Connected'}
+              <Zap className={`h-3 w-3 ${isReady ? 'animate-pulse-glow' : ''}`} />
+              {isReady ? 'Ready' : isConnected ? 'Store Codebase' : 'Not Connected'}
             </div>
           </div>
         </div>
@@ -52,24 +54,26 @@ const Index = () => {
           <aside className="space-y-4">
             <ConnectionPanel
               isConnected={isConnected}
-              onConnect={() => setIsConnected(true)}
-              onUpload={() => setHasUpload(true)}
-              hasUpload={hasUpload}
+              onConnect={setNeo4jData}
+              onParse={setParserData}
+              onStore={setStorageData}
             />
             
             {/* Quick Stats */}
-            {isConnected && hasUpload && (
+            {isReady && (
               <div className="glass rounded-xl p-4 space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Query Info</h3>
+                <h3 className="text-sm font-medium text-muted-foreground">Session Info</h3>
                 <div className="flex flex-wrap gap-2">
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
-                    <span className="text-2xl font-bold gradient-text">{resultsTrigger}</span>
+                    <span className="text-2xl font-bold gradient-text">{queryCount}</span>
                     <span className="text-xs text-muted-foreground">Queries</span>
                   </div>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
-                    <span className="text-2xl font-bold text-accent">{entities.length}</span>
-                    <span className="text-xs text-muted-foreground">Entities</span>
-                  </div>
+                  {parserData && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
+                      <span className="text-2xl font-bold text-accent">{parserData.files_analyzed}</span>
+                      <span className="text-xs text-muted-foreground">Files</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -78,18 +82,22 @@ const Index = () => {
           {/* Center - Chat */}
           <div className="glass rounded-xl flex flex-col overflow-hidden">
             <ChatInterface
-              disabled={!isConnected || !hasUpload}
-              onChatResponse={handleChatResponse}
+              disabled={!isReady}
+              onQueryResponse={handleQueryResponse}
             />
           </div>
 
           {/* Right Sidebar - Results */}
           <aside className="glass rounded-xl overflow-hidden">
             <div className="p-3 border-b border-border/50">
-              <h2 className="text-sm font-medium">Auto-Generated Results</h2>
-              <p className="text-xs text-muted-foreground">Paths, Context & Graph Data</p>
+              <h2 className="text-sm font-medium">Results & Reasoning</h2>
+              <p className="text-xs text-muted-foreground">Graph Stats, Contexts & Retrieval Steps</p>
             </div>
-            <ResultsPanel entities={entities} trigger={resultsTrigger} />
+            <ResultsPanel 
+              neo4jData={neo4jData}
+              storageData={storageData}
+              queryResponse={queryResponse}
+            />
           </aside>
         </div>
       </main>
