@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Bot, User, Sparkles, FileCode, MapPin } from 'lucide-react';
+import { Send, FileCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -79,9 +79,8 @@ export function ChatInterface({ onQueryResponse }: ChatInterfaceProps) {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-            <Sparkles className="h-12 w-12 mb-4 text-primary animate-pulse-glow" />
-            <h3 className="text-lg font-medium text-foreground mb-2">CodeBase RAG</h3>
-            <p className="text-sm max-w-md">
+            <h3 className="text-xl font-semibold text-foreground mb-2">CodeBase RAG</h3>
+            <p className="text-sm max-w-md leading-relaxed">
               Ask questions about your codebase. Get answers with reasoning and code context.
             </p>
           </div>
@@ -90,21 +89,23 @@ export function ChatInterface({ onQueryResponse }: ChatInterfaceProps) {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.role === 'assistant' && (
-              <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
-                <Bot className="h-4 w-4 text-primary" />
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
+                AI
               </div>
             )}
             <div
-              className={`max-w-[80%] rounded-xl px-4 py-3 ${
+              className={`max-w-[85%] rounded-lg px-5 py-4 ${
                 msg.role === 'user'
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary/80 text-foreground'
+                  : 'bg-card border border-border/50 text-foreground'
               }`}
             >
-              <div className="text-sm prose prose-sm prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+              <div className={`prose prose-sm max-w-none
+                ${msg.role === 'assistant' ? 'prose-headings:text-foreground prose-headings:font-semibold prose-headings:mb-3 prose-headings:mt-4 prose-p:text-foreground prose-p:leading-relaxed prose-p:mb-3 prose-strong:text-foreground prose-strong:font-semibold prose-ul:my-3 prose-ul:ml-4 prose-ol:my-3 prose-ol:ml-4 prose-li:text-foreground prose-li:mb-1.5 prose-li:leading-relaxed prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:my-4 prose-blockquote:border-l-primary prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0' : 'text-primary-foreground'}`}
+              >
                 <ReactMarkdown>{msg.content}</ReactMarkdown>
               </div>
               
@@ -122,24 +123,20 @@ export function ChatInterface({ onQueryResponse }: ChatInterfaceProps) {
               )}
             </div>
             {msg.role === 'user' && (
-              <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                <User className="h-4 w-4" />
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-muted-foreground">
+                You
               </div>
             )}
           </div>
         ))}
 
         {loading && (
-          <div className="flex gap-3">
-            <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+          <div className="flex gap-4">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
+              AI
             </div>
-            <div className="bg-secondary/80 rounded-xl px-4 py-3">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
+            <div className="bg-card border border-border/50 rounded-lg px-5 py-4">
+              <span className="text-muted-foreground text-sm">Thinking...</span>
             </div>
           </div>
         )}
