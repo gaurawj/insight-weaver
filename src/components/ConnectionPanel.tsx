@@ -13,6 +13,7 @@ interface ConnectionPanelProps {
 }
 
 export function ConnectionPanel({ isConnected, onConnect, onParse, onStore }: ConnectionPanelProps) {
+  const [dbName, setDbName] = useState('');
   const [codebasePath, setCodebasePath] = useState('');
   const [jsonPath, setJsonPath] = useState('');
   const [connecting, setConnecting] = useState(false);
@@ -24,7 +25,7 @@ export function ConnectionPanel({ isConnected, onConnect, onParse, onStore }: Co
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const response = await api.connectNeo4j(true);
+      const response = await api.connectNeo4j(true, dbName || undefined);
       onConnect(response);
       toast({ title: 'Connected', description: response.message });
     } catch (error) {
@@ -95,6 +96,13 @@ export function ConnectionPanel({ isConnected, onConnect, onParse, onStore }: Co
           <Database className="h-4 w-4" />
           <span>Neo4j Connection</span>
         </div>
+        <Input
+          placeholder="Database name (optional)"
+          value={dbName}
+          onChange={(e) => setDbName(e.target.value)}
+          disabled={isConnected}
+          className="bg-secondary/50 border-border/50 text-sm"
+        />
         <Button
           onClick={handleConnect}
           disabled={connecting || isConnected}

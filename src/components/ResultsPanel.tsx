@@ -88,7 +88,7 @@ export function ResultsPanel({ neo4jData, storageData, queryResponse }: ResultsP
           expanded={expanded.reasoning}
           onToggle={() => toggleSection('reasoning')}
         >
-          <div className="space-y-3 max-h-64 overflow-y-auto">
+          <div className="space-y-3">
             {/* Summary */}
             <div className="flex gap-2 flex-wrap">
               <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">
@@ -113,24 +113,63 @@ export function ResultsPanel({ neo4jData, storageData, queryResponse }: ResultsP
               </div>
             )}
 
-            {/* Steps */}
+            {/* Detailed Steps */}
             <div className="space-y-2">
-              {queryResponse.reasoning.retrieval_steps.slice(0, 5).map((step, i) => (
-                <div key={i} className="p-2 rounded-lg bg-secondary/50 text-xs space-y-1">
-                  <div className="flex items-center gap-2">
+              {queryResponse.reasoning.retrieval_steps.map((step, i) => (
+                <div key={i} className="p-3 rounded-lg bg-secondary/50 text-xs space-y-2 border border-border/30">
+                  {/* Header */}
+                  <div className="flex items-center gap-2 flex-wrap">
                     <CircleDot className="h-3 w-3 text-primary flex-shrink-0" />
-                    <span className="font-medium text-foreground">{step.context_name}</span>
-                    <span className="text-muted-foreground">({step.context_type})</span>
+                    <span className="font-semibold text-foreground">{step.context_name}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{step.context_type}</span>
                   </div>
-                  <div className="pl-5 text-muted-foreground">
-                    {step.file_path} • {step.line_range}
+                  
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 pl-5">
+                    {step.file_path && (
+                      <>
+                        <span className="text-muted-foreground">File:</span>
+                        <span className="text-foreground font-mono">{step.file_path || '—'}</span>
+                      </>
+                    )}
+                    <span className="text-muted-foreground">Lines:</span>
+                    <span className="text-foreground">{step.line_range}</span>
+                    <span className="text-muted-foreground">Relevance:</span>
+                    <span className="text-success font-medium">{step.relevance_score.toFixed(2)}</span>
+                    <span className="text-muted-foreground">Method:</span>
+                    <span className="text-foreground">{step.retrieval_method}</span>
+                    {step.hop_distance !== undefined && step.hop_distance !== null && (
+                      <>
+                        <span className="text-muted-foreground">Hop Distance:</span>
+                        <span className="text-foreground">{step.hop_distance}</span>
+                      </>
+                    )}
+                    {step.semantic_score !== undefined && step.semantic_score !== null && (
+                      <>
+                        <span className="text-muted-foreground">Semantic Score:</span>
+                        <span className="text-foreground">{step.semantic_score.toFixed(2)}</span>
+                      </>
+                    )}
+                    {step.keywords_matched && step.keywords_matched.length > 0 && (
+                      <>
+                        <span className="text-muted-foreground">Keywords:</span>
+                        <span className="text-foreground">{step.keywords_matched.join(', ')}</span>
+                      </>
+                    )}
                   </div>
-                  <div className="pl-5 text-muted-foreground">
-                    Score: {step.relevance_score.toFixed(2)} • {step.retrieval_method}
-                  </div>
+                  
+                  {/* Graph Path */}
+                  {step.graph_path && (
+                    <div className="pl-5 pt-1">
+                      <span className="text-muted-foreground">Path: </span>
+                      <span className="text-accent font-mono text-[11px]">{step.graph_path}</span>
+                    </div>
+                  )}
+                  
+                  {/* Explanation */}
                   {step.explanation && (
-                    <div className="pl-5 text-foreground/80 italic">
-                      "{step.explanation}"
+                    <div className="pl-5 pt-1 text-foreground/80 italic border-l-2 border-primary/30 ml-5 pl-2">
+                      {step.explanation}
                     </div>
                   )}
                 </div>

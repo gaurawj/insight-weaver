@@ -19,6 +19,7 @@ export interface QueryRequest {
 
 export interface Neo4jRequest {
   test_connection?: boolean;
+  db_name?: string;
 }
 
 // Response types
@@ -131,11 +132,11 @@ export const api = {
     return res.json();
   },
 
-  async connectNeo4j(testConnection = true): Promise<Neo4jResponse> {
+  async connectNeo4j(testConnection = true, dbName?: string): Promise<Neo4jResponse> {
     const res = await fetch(`${API_BASE}/neo4j`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ test_connection: testConnection }),
+      body: JSON.stringify({ test_connection: testConnection, db_name: dbName || undefined }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
